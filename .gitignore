@@ -1,2 +1,7 @@
 .venv
 .lock
+.DS_Store
+data/
+
+.env
+.ipynb_checkpoints/
