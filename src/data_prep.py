@@ -26,6 +26,8 @@ def make_dataframe():
 
     df = df.dropna(subset=["reviews.text", "reviews.title", "reviews.rating"])
 
+    df['name'] = df['name'].astype(str) 
+
     df['name_title_text'] = \
         "Name: " + df['name'].astype(str) + \
         " Title: " + df['reviews.title'].astype(str) + \
@@ -36,7 +38,19 @@ def make_dataframe():
     df_resampled = df.sample(frac=1, random_state=42).reset_index(drop=True) #  randomize the rows of the dataframe
     df_resampled['new_id'] = np.arange(1, len(df_resampled) + 1)
 
-    df_resampled[['reviews.numHelpful', 'reviews.didPurchase']] = (df_resampled[['reviews.numHelpful', 'reviews.didPurchase']].fillna(0)).astype(int)
+
+
+    df_resampled['reviews.doRecommend'] = df_resampled['reviews.doRecommend'].replace({'true': 1, 'false': 0})
+    df_resampled['reviews.didPurchase'] = df_resampled['reviews.didPurchase'].replace({'true': 1, 'false': 0})
+    df_resampled['reviews.numHelpful'] = df_resampled['reviews.numHelpful'].replace({'true': 1, 'false': 0})
+    df_resampled['reviews.rating'] = df_resampled['reviews.rating'].replace({'true': 1, 'false': 0})
+
+    df_resampled['reviews.numHelpful'] = (df_resampled['reviews.numHelpful'].fillna(0)).astype(int)
+    df_resampled['reviews.didPurchase'] = (df_resampled['reviews.didPurchase'].fillna(0)).astype(int)
+    df_resampled['reviews.doRecommend'] = (df_resampled['reviews.doRecommend'].fillna(0)).astype(int)
+    df_resampled['reviews.rating'] = (df_resampled['reviews.rating'].fillna(0)).astype(int)
+
+    df_resampled = df_resampled[df_resampled['name'] != 'nan']
 
     return df_resampled
 

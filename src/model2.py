@@ -12,6 +12,7 @@ import data_prep
 _ = load_dotenv(find_dotenv())
 OPENAI_API_KEY  = os.getenv('OPENAI_API_KEY')
 
+SET_CATEGORIES = 6
 
 
 print('Model 2 started\n\n')
@@ -63,16 +64,15 @@ def get_embedding(text):
 
     
 
-prompt_header = """
-Determine 6 product topics that are being discussed in the following text.
+prompt_header = f"""
+Determine {SET_CATEGORIES} product topics that are being discussed in the following text.
 Make each item one or two words long.
 Format your response as a list of items separated by commas, without numbering them.
 Text: 
 """
 
-prompt_categories_header = """
-
-Based on the following text, determine 6 product categories.
+prompt_categories_header = f"""
+Based on the following text, determine {SET_CATEGORIES} product categories.
 The categories must closely relate to categories that exist in typical retail E-commerce.
 Format your response as a list of items separated by commas, without numbering them.
 Text: 
