@@ -1,7 +1,9 @@
 .venv
 .lock
 .DS_Store
-data/
-
 .env
 .ipynb_checkpoints/
+.pyc
+
+
+data/embedding_columns.pkl
