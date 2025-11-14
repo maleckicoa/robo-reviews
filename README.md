@@ -1,86 +1,96 @@
 
 
-# RoboReviews — The new product review aggregator
+# RoboReviews — The product review aggregator
 
-Product Review Aggregator Powered by NLP and LLMs
+Product Review Aggregator powered by LLMs <br>
 
-##  Executive Summary
+Demo: https://maleckicoa.com/demo-apps/robo-reviews<br><br><br>
 
-RoboReviews transforms raw customer reviews into structured insights. It automates review ingestion, sentiment classification, product category grouping and article-style summary generation. The platform uses GPT Nano for category assignment and Llama for summary generation. Final product categories:
-	•	BATTERIES
-	•	E-READERS
-	•	KIDS ELECTRONICS
-	•	TABLETS
-	•	STREAMINGING DEVICES
+ <img src="photos/robo-reviews.png" alt="Robo Reviews" width="800" style="border: 5px solid #000; border-radius: 16px;" /><br><br>
 
-## Datasets 
 
-Primary Dataset: https://www.kaggle.com/datasets/datafiniti/consumer-reviews-of-amazon-products/data 
 
-The system uses review title, review text, rating, brand, product metadata and category fields. All raw files are merged into a single cleaned dataframe.
+##  Project Summary
+Robo Reviews creates production ready content for a Product Review Website / Online Store.<br>
+It takes a dataset of 65k+ raw user reviews and applies LLM based sentiment analysis, clustering and text generation 
+in order to:
+**1.** define product categories 
+**2.** discover the best/worst products within each category 
+**3.** generate a review summary for each product
 
-### Automated Downloading from Kaggle
+Final product categories:
+- Batteries
+- E-readers
+- Kids electronics
+- Tablets
+- Streaminging devices
+- Smart speakers
 
-The project uses kagglehub to download and manage dataset files without manual intervention.
+## Project Structure
+### src: 
+- main.py - main project script, running this returns 2 .json files: (data/best_products.json, data/worst_products.json)<br>
+These hold a selection of up to 3 best and worst rated product for each product group.
+- data_prep.py - downloads and cleans the dataset ( https://www.kaggle.com/datasets/datafiniti/consumer-reviews-of-amazon-products/data )
+- data_processing.py - Filters the dataset into a selection of best and worst rated products for each category
+- model1.py - applies the sentiment analysis and assigns a 'positive', 'negative' or 'neutral' sentiment to each review
+- model2.py - assigns a product category to each product review
+- model3.py - Summarizes the product review for each of the top 3 best/worst products within each product category
 
-### Data Cleaning and Standardization
+### data:
+- Contains generated pickle files that store intermediate model results. This also allows the models to be ran independently.
 
-All processing is handled in data_prep.py, including:
-- Merging raw datasets
-- Normalizing column names
-- Filtering corrupted rows
-- Generating unique product identifiers
-- Sampling for large datasets
-- Pickle-based caching for faster reloads
+### photos 
+- Photos of the categores/analysis used for defining the number of product categories
 
-## Methodology
+### dev_scripts
+- Jupyter notebooks used during development
+- See **dev_scripts/metrics.ipynb** for model 1 sentiment analysis metrics
 
-###  Multiple Modeling Pipelines
-main.ipynb allows you to:
-- Load the cleaned dataset
-- Explore review distributions
-- Execute each model pipeline
-- Inspect predictions and errors
-- Export best or worst product picks as pickle or JSON files
 
-### Model 1 — Sentiment Analysis
+##  How to run this project?
+Run the **main.py**, it will sequentially run:
+- data_prep.py       - data download and cleaning
+- model1.py          - assigning of the sentiment
+- model2.py          - assigning of the categories
+- data_processing.py - selecting the best/worst products for each category and fetching the most representative reviews for each product
+- model3.py          - generating a review sumary text (based on the reviews collected in previous step) for each of the best/worst products
 
-model1.py for sentiment classification using cardiffnlp/twitter-roberta-base-sentiment-latest (https://huggingface.co/cardiffnlp/twitter-roberta-base-sentiment-latest)
+Find the final output here: data/best_products.json, data/worst_products.json<br><br>
+**data/best_products.json** contains the data behind the demo website: https://maleckicoa.com/demo-apps/robo-reviews
+
+
+## Dataset
+Consumer Reviews of Amazon Products<br>
+https://www.kaggle.com/datasets/datafiniti/consumer-reviews-of-amazon-products/data 
+
+
+
+
+## Models used
+
+### Sentiment Analysis
+cardiffnlp/twitter-roberta-base-sentiment-latest (https://huggingface.co/cardiffnlp/twitter-roberta-base-sentiment-latest)
 Input: review title and full review text
 Output: Positive, Neutral or Negative
-Purpose: measure user satisfaction per review
+Purpose: to measure user satisfaction per review
 
-### Model 2 — Category Classification with GPT Nano
+### Product Category Classification
+gpt-4o-mini - used for product category classification:
+Model Input: product title, review title and full review text for a batch (1000 from 60000) of reviews
+Model Output: Six final product categories
+Purpose: define a finite number of product categorries
 
-model2.py for product category classification using gpt-4o-mini (https://openai.com/index/gpt-4o-mini-advancing-cost-efficient-intelligence/)
-Input: product title, summary and aggregated review text
-Output: one of the five final categories
-Purpose: unify inconsistent product categories into a clean structure
+text-embedding-3-small - text embedding model:
+Model Input: product title, review title and full review text
+Output: embedding vector
+Purpose: Embedd each product review and 6 defined product categories. 
+Later when using cosine similarty, each review will be assigned a product category
 
 ### Model 3 — Generative Article Summary with Llama
-
-model3.py for iterative article generation using meta-llama/Llama-3.2-1B-Instruct (https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct)
-Top products are selected through an internal scoring formula combining sentiment distribution with number of reviews.
-Llama generates a neutral summary of customer opinions and recommends the top products in each category.
+meta-llama/Llama-3.2-1B-Instruct (https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct)
+Model Input: Corpus of most representative 20 product reviews for each of the best/worst products
+Model Output: A text summuary of the model input
+Purpose: neutral summary of customer opinions for the best/worst products in each category.
 
 ## Requirements
-
-- pandas 
-- numpy
-- kagglehub
-- torch
-- transformers
-- accelerate
-- jupyter
-- pickle5
-- sqlalchemy
-- openai
-- dotenv
-- scikit-learn
-- matplotlib
-
-## Additional Notes
-
-- All modeling components are modular and interchangeable.
-- The system easily supports additional categories, larger datasets and different LLMs.
-- The architecture is designed for experimentation, extension and fast iteration.
+- see pyproject.toml

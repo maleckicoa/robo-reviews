@@ -5,7 +5,7 @@
 .ipynb_checkpoints/
 .pyc
 __pycache__
-
+.vscode/*
 
 data/embedding_columns.pkl
 data/embedding_columns_4.pkl

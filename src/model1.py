@@ -1,56 +1,51 @@
-import torch
-import pandas as pd
-from pathlib import Path
-from transformers import pipeline
-import kagglehub
 import pickle
+from pathlib import Path
+
+import pandas as pd
 from transformers import pipeline
+
 import data_prep
 
 
-print('\n\nModel 1 started\n\n')
-df_resampled = data_prep.make_dataframe()
+def main(
+    output_path: str = "data/sentiment_columns.pkl",
+    batch_size: int = 16,
+    max_text_len: int = 1000,
+    model_name: str = "cardiffnlp/twitter-roberta-base-sentiment-latest",
+) -> pd.DataFrame:
+    """
+    Run sentiment analysis over reviews and stores only the the subset dataframe with 'new_id' + 'sentiment' columns as  apickle file
 
-sentiment_model = pipeline("sentiment-analysis", model="cardiffnlp/twitter-roberta-base-sentiment-latest")
+    """
 
-def process_review(review):
-    result = sentiment_model(review)[0]
-    label = result["label"].lower()
-    return label  # returns "positive", "negative", or "neutral"
+    print("\n\nModel 1 started\n\n")
 
+    sp = pipeline("sentiment-analysis", model=model_name)
+    df = data_prep.make_dataframe()
 
-def get_sentiment(text):
-    if not isinstance(text, str) or not text.strip():
-        return "neutral"
+    df["full_review"] = (
+        df["reviews.title"].astype(str) + " " + df["reviews.text"].astype(str)
+    ).str.strip()
+    texts = (
+        df["full_review"]
+        .fillna("")
+        .astype(str)
+        .apply(lambda t: t[:max_text_len])
+        .tolist()
+    )
 
-    result = sentiment_model(text[:512])[0]   # truncate very long reviews
-    label = result["label"].lower()          # POSITIVE  NEGATIVE  NEUTRAL
-    return label
+    results = sp(texts, batch_size=batch_size, padding=True)
+    df["sentiment"] = [r["label"].lower() for r in results]
 
+    sentiment_df = df[["new_id", "sentiment"]]
+    out_path = Path(output_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(out_path, "wb") as f:
+        pickle.dump(sentiment_df, f)
 
-df_resampled["full_review"] = (
-    df_resampled["reviews.title"].astype(str) + " " +
-    df_resampled["reviews.text"].astype(str)
-).str.strip()
-
-
-texts = (
-    df_resampled["full_review"]
-    .fillna("")
-    .astype(str)
-    .apply(lambda t: t[:1000])  # shorten if needed
-    .tolist()
-)
-
-results = sentiment_model(texts, batch_size=16, padding=True)
-df_resampled["sentiment"] = [r["label"].lower() for r in results]
-
-
-# PICKLE SENTIMENT COLUMNS
-sentiment_columns = df_resampled[['new_id', 'sentiment']]
-with open(Path("data/sentiment_columns.pkl"), "wb") as f:
-    pickle.dump(sentiment_columns, f)
+    print("\n\nModel 1 completed\n")
+    return sentiment_df
 
 
-
-print('\n\nModel 1 completed')
+if __name__ == "__main__":
+    main()

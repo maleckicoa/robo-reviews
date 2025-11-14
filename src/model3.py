@@ -1,50 +1,28 @@
-import pandas as pd
 import os
 import pickle
-from dotenv import load_dotenv, find_dotenv
+
+import pandas as pd
 import torch
-from pathlib import Path
-from transformers import AutoTokenizer, AutoModelForCausalLM, GenerationConfig
+from dotenv import find_dotenv, load_dotenv
+from transformers import AutoModelForCausalLM, AutoTokenizer, GenerationConfig
 
-import data_prep 
-
-
-print('Model 3 started\n\n')
-
-
-_ = load_dotenv(find_dotenv())
-hf_token  = os.getenv('HF_TOKEN')
-
-best_products = pd.read_pickle("data/best_products.pkl")
-worst_products = pd.read_pickle("data/worst_products.pkl")
+# Globals that will be initialized in main()
+tokenizer = None
+model = None
+device = None
 
 
-model_id = "meta-llama/Llama-3.2-1B-Instruct"
+def llama_generate(
+    system_prompt: str,
+    user_prompt: str,
+    max_new_tokens: int = 220,
+    temperature: float = 0.2,
+    top_p: float = 0.9,
+) -> str:
+    """
+    Setup the Llama model
+    """
 
-#device = "cuda" if torch.cuda.is_available() else "cpu"
-device = "mps" if torch.backends.mps.is_available() else "cpu"
-
-tokenizer = AutoTokenizer.from_pretrained(
-    model_id,
-    token=hf_token
-)
-
-model = AutoModelForCausalLM.from_pretrained(
-    model_id,
-    token=hf_token,
-    torch_dtype=torch.float16 if device == "cuda" else torch.float32
-).to(device)
-
-model.eval()
-
-
-
-
-
-def llama_generate(system_prompt: str, user_prompt: str,
-                   max_new_tokens: int = 220,
-                   temperature: float = 0.2,
-                   top_p: float = 0.9) -> str:
     prompt = f"<|system|>\n{system_prompt}\n<|user|>\n{user_prompt}\n<|assistant|>\n"
 
     inputs = tokenizer(prompt, return_tensors="pt").to(device)
@@ -55,22 +33,24 @@ def llama_generate(system_prompt: str, user_prompt: str,
     gen_cfg.top_p = top_p
     gen_cfg.do_sample = False
     gen_cfg.pad_token_id = tokenizer.eos_token_id
-    gen_cfg.repetition_penalty = 1.15          # push it away from repeating
-    gen_cfg.no_repeat_ngram_size = 6           # avoid repeating long phrases
+    gen_cfg.repetition_penalty = 1.15  # push it away from repeating
+    gen_cfg.no_repeat_ngram_size = 6  # avoid repeating long phrases
 
-    with torch.no_grad():
+    with torch.x():
         output_ids = model.generate(
             **inputs,
             generation_config=gen_cfg,
         )
 
     full_text = tokenizer.decode(output_ids[0], skip_special_tokens=False)
-    answer = full_text[len(prompt):].strip()
+    answer = full_text[len(prompt) :].strip()
     return answer
 
 
-
 def summarize_product_row_with_llama(row) -> str:
+    """
+    Define the model prompts, run the model
+    """
     product = row["name"]
     category = row.get("predicted_product_category", "")
     reviews = str(row["summary_reviews_string"])[:3500]
@@ -107,46 +87,87 @@ def summarize_product_row_with_llama(row) -> str:
     return llama_generate(system_prompt, user_prompt, max_new_tokens=120)
 
 
-
-
-best_products["llm_summary"] = best_products.apply(
-    summarize_product_row_with_llama,
-    axis=1
-)
-
-worst_products["llm_summary"] = worst_products.apply(
-    summarize_product_row_with_llama,
-    axis=1
-)
-
 def clean_summary(s: pd.Series) -> pd.Series:
+    """
+    Clean up the llama model output
+    """
     return (
-        s.str.replace('<[^>]+>', '', regex=True)         # remove HTML tags
-         .str.replace(r'^[a-zA-Z]\.\s*', '', regex=True) # leading "s." / "t." etc.
-         .str.replace(r'\.\s*,', '.', regex=True)        # ". ,"
-         .str.replace(r'\n+', ' ', regex=True)           # newlines
-         .str.strip()                                    # trim spaces
+        s.str.replace("<[^>]+>", "", regex=True)  # remove HTML tags
+        .str.replace(r"^[a-zA-Z]\.\s*", "", regex=True)  # leading "s." / "t." etc.
+        .str.replace(r"\.\s*,", ".", regex=True)  # ". ,"
+        .str.replace(r"\n+", " ", regex=True)  # newlines
+        .str.strip()  # trim spaces
     )
 
 
+def main():
+    """
+    Main function to run the model
+    It loads the pickle files with the best and worst products and generates a Llama product summary
+    It returns 2 .json files - best and worst products with the Llama product summary
+    """
+    print("Model 3 started\n\n")
 
-best_products['llm_summary'] = clean_summary(best_products['llm_summary'])
-worst_products['llm_summary'] = clean_summary(worst_products['llm_summary'])
+    _ = load_dotenv(find_dotenv())
+    hf_token = os.getenv("HF_TOKEN")
+
+    with open("data/best_products.pkl", "rb") as f:
+        best_products = pickle.load(f)
+
+    with open("data/worst_products.pkl", "rb") as f:
+        worst_products = pickle.load(f)
+
+    model_id = "meta-llama/Llama-3.2-1B-Instruct"
+
+    global device, tokenizer, model
+    # device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = "mps" if torch.backends.mps.is_available() else "cpu"
+
+    tokenizer = AutoTokenizer.from_pretrained(model_id, token=hf_token)
+
+    model = AutoModelForCausalLM.from_pretrained(
+        model_id,
+        token=hf_token,
+        torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+    ).to(device)
+
+    model.eval()
+
+    best_products["llm_summary"] = best_products.apply(
+        summarize_product_row_with_llama, axis=1
+    )
+
+    worst_products["llm_summary"] = worst_products.apply(
+        summarize_product_row_with_llama, axis=1
+    )
+
+    best_products["llm_summary"] = clean_summary(best_products["llm_summary"])
+    worst_products["llm_summary"] = clean_summary(worst_products["llm_summary"])
+
+    # Select the columns to save
+    cols = [
+        "predicted_product_category",
+        "name",
+        "imageURLs",
+        "summary_reviews_string",
+        "llm_summary",
+    ]
+
+    # Save the best and worst products with the Llama product summary
+    best_products_with_llm_summary = best_products[cols]
+    worst_products_with_llm_summary = worst_products[cols]
+
+    best_products_with_llm_summary.to_json(
+        "data/best_products.json", orient="records", indent=2, force_ascii=False
+    )
+
+    worst_products_with_llm_summary.to_json(
+        "data/worst_products.json", orient="records", indent=2, force_ascii=False
+    )
+
+    print("\n\nModel 3 completed")
+    return best_products_with_llm_summary, worst_products_with_llm_summary
 
 
-cols = ['predicted_product_category', 'name', 'imageURLs', 'llm_summary']
-best_products_with_llm_summary = best_products[cols]
-worst_products_with_llm_summary = worst_products[cols]
-
-json_best_data = best_products_with_llm_summary.to_json(orient="records")
-json_worst_data = worst_products_with_llm_summary.to_json(orient="records")
-
-
-with open(Path("data/json_best_data.pkl"), "wb") as f:
-    pickle.dump(json_best_data, f)
-
-with open(Path("data/json_worst_data.pkl"), "wb") as f:
-    pickle.dump(json_worst_data, f)
-
-
-print('\n\nModel 3 completed')
+if __name__ == "__main__":
+    main()
