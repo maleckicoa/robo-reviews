@@ -11,7 +11,7 @@ Demo: https://maleckicoa.com/demo-apps/robo-reviews<br><br><br>
 
 
 ##  Project Summary
-Robo Reviews creates production ready content for a Product Review Website / Online Store.<br>
+RoboReviews creates production ready content for an imaginary Website/Online Store.<br>
 It takes a dataset of 65k+ raw user reviews and applies LLM based sentiment analysis, clustering and text generation 
 in order to:
 **1.** define product categories 
@@ -68,28 +68,29 @@ https://www.kaggle.com/datasets/datafiniti/consumer-reviews-of-amazon-products/d
 
 ## Models used
 
-### Sentiment Analysis
+### Model 1 - Sentiment Analysis
 cardiffnlp/twitter-roberta-base-sentiment-latest (https://huggingface.co/cardiffnlp/twitter-roberta-base-sentiment-latest)
 Input: review title and full review text
 Output: Positive, Neutral or Negative
 Purpose: to measure user satisfaction per review
 
-### Product Category Classification
+### Model 2 - Product Category Classification
 gpt-4o-mini - used for product category classification:
 Model Input: product title, review title and full review text for a batch (1000 from 60000) of reviews
-Model Output: Six final product categories
+Model Output: 6 final product categories
 Purpose: define a finite number of product categorries
 
+### Model 2(a) - Assigning a Product Category to each Review
 text-embedding-3-small - text embedding model:
 Model Input: product title, review title and full review text
 Output: embedding vector
-Purpose: Embedd each product review and 6 defined product categories. 
+Purpose: Embed each product review and 6 defined product categories. 
 Later when using cosine similarty, each review will be assigned a product category
 
 ### Model 3 — Generative Article Summary with Llama
 meta-llama/Llama-3.2-1B-Instruct (https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct)
 Model Input: Corpus of most representative 20 product reviews for each of the best/worst products
-Model Output: A text summuary of the model input
+Model Output: A text summary of the model input
 Purpose: neutral summary of customer opinions for the best/worst products in each category.
 
 ## Requirements
